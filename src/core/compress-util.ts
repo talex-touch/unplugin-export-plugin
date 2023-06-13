@@ -126,10 +126,14 @@ export class TalexCompress {
     if (!await this.statsSize())
       return
 
-    const compressStream = new compressing.tar.Stream()
+    return new Promise<void>((resolve) => {
+      const compressStream = new compressing.tar.Stream()
 
-    this.sourcePaths.forEach(srcPath => compressStream.addEntry(srcPath))
+      this.sourcePaths.forEach(srcPath => compressStream.addEntry(srcPath))
 
-    compressStream.pipe(this.progressStream).pipe(this.destStream)
+      compressStream.pipe(this.progressStream).pipe(this.destStream)
+
+      this.destStream.on('finish', () => resolve())
+    })
   }
 }

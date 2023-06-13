@@ -155,6 +155,8 @@ function exportPlugin(manifest: IManifest) {
     step: 'Stats',
   })
 
+  console.log('\n')
+
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Start compressing plugin files...'))
   tCompress.compress()
 }

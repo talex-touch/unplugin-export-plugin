@@ -10,6 +10,21 @@ Export **unplugin** for [talex-touch](https://github.com/talex-touch/talex-touch
 npm i @talex-touch/unplugin-export-plugin
 ```
 
+Next in your `vite.config.js` or `vite.config.ts`
+
+### Vite
+
+``` ts
+import TouchPluginExport from '@talex-touch/unplugin-export-plugin/vite'
+
+export default defineConfig({
+  plugins: [
+    ....,
+    TouchPluginExport()
+  ],
+})
+```
+
 ## Description
 
 It will automatically generate a `manifest.json` when you build.

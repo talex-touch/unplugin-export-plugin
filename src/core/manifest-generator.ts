@@ -12,7 +12,7 @@ export function build() {
 }
 
 function genInit() {
-  const packagePath = path.join(__dirname, 'package.json')
+  const packagePath = path.resolve('package.json')
 
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'))
 
@@ -30,7 +30,7 @@ function genInit() {
     build: touch?.build,
   }
 
-  const manifestPath = path.join(__dirname, 'dist', 'manifest.json')
+  const manifestPath = path.resolve('dist', 'manifest.json')
 
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
 }

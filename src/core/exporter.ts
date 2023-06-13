@@ -160,5 +160,5 @@ function exportPlugin(manifest: IManifest) {
 }
 
 function genStr(len: number): string {
-  return (Math.random() * 100000).toString(16).slice(-8) + genStr(len - 8)
+  return (Math.random() * 100000).toString(16).slice(-8) + (len > 8 ? genStr(len - 8) : '')
 }

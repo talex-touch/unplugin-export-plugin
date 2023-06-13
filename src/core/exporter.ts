@@ -5,7 +5,7 @@ import chalk from 'chalk'
 import cliProgress from 'cli-progress'
 import { CompressLimit, TalexCompress } from './compress-util'
 
-export function build() {
+export async function build() {
   console.log('\n\n\n')
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.blueBright(' Generating manifest.json ...'))
 
@@ -13,7 +13,7 @@ export function build() {
 
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Manifest.json generated successfully!'))
 
-  exportPlugin(manifest)
+  await exportPlugin(manifest)
 
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(` Export plugin ${manifest.name}-${manifest.version}.touch-plugin successfully!`))
   console.log('\n\n\n')
@@ -72,7 +72,7 @@ function genInit(): IManifest {
   return manifest as IManifest
 }
 
-function exportPlugin(manifest: IManifest) {
+async function exportPlugin(manifest: IManifest) {
   const build = manifest.build || {
     files: [],
     secret: {
@@ -102,6 +102,8 @@ function exportPlugin(manifest: IManifest) {
     build.files.push(path.resolve('dist', 'manifest.json'))
     build.files.push(path.resolve('dist', 'key.talex'))
   }
+
+  console.log(chalk.bgBlack.white(' Talex-Touch ') + chalk.gray(' Files to be packed:') + build.files)
 
   const content = `@@@${manifest.name}\n${JSON.stringify(manifest)}\n\n\n`
   const length = content.length + 25
@@ -155,10 +157,8 @@ function exportPlugin(manifest: IManifest) {
     step: 'Stats',
   })
 
-  console.log('\n')
-
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Start compressing plugin files...'))
-  tCompress.compress()
+  await tCompress.compress()
 }
 
 function genStr(len: number): string {

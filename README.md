@@ -27,10 +27,16 @@ export default defineConfig({
 
 ## Description
 
+### Auto Generate Manifest
+
 It will automatically generate a `manifest.json` when you build.
 
-## Todo
+### Auto Wrap Project -> Plugin
 
 Generate a `touch-plugin` file on the `build` folder!
 
 For more about it, see the source code.
+
+## Contact
+
+You could contact author by `TalexDreamSoul@Gmail.com`

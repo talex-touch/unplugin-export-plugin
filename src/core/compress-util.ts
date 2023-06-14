@@ -131,7 +131,6 @@ export class TalexCompress {
       compressStream.pipe(this.progressStream).pipe(this.destStream)
 
       this.destStream.on('finish', () => {
-        console.log('[TalexTouch] Compress done!')
         resolve()
       })
 

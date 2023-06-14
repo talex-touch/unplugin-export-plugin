@@ -4,7 +4,7 @@ import { build } from './core/exporter'
 
 export default createUnplugin<Options | undefined>(() => ({
   name: '@talex-touch/unplugin-export-plugin',
-  async buildEnd() {
+  async writeBundle() {
     await build()
 
     // eslint-disable-next-line no-console

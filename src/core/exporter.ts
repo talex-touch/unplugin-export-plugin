@@ -141,7 +141,7 @@ async function exportPlugin(manifest: IManifest) {
     }
     else {
       p.stop()
-      p.start(e.t, e.amo, { step: `Stat ${e.srcPath}` })
+      p.start(e.amo, e.t)
     }
   })
 

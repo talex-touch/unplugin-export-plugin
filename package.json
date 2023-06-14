@@ -91,6 +91,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^0.39.5",
+    "@types/cli-progress": "^3.11.0",
     "@types/node": "^18.16.16",
     "bumpp": "^9.1.0",
     "chalk": "^5.2.0",

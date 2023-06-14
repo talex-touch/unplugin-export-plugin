@@ -82,44 +82,46 @@ export class TalexCompress {
   }
 
   async statsSize() {
-    const source = [...this.sourcePaths]
-    let amo = 0
 
-    this.call('stats', this.totalBytes = 0)
+    return new Promise<boolean>((resolve) => {
+      const source = [...this.sourcePaths]
+      let amo = 0
 
-    while (source.length) {
-      const srcPath: string = source.shift()!
+      this.call('stats', this.totalBytes = 0)
 
-      const srcStat = await stat(srcPath)
-      this.totalBytes = this.totalBytes + srcStat.size
+      while (source.length) {
+        const srcPath: string = source.shift()!
 
-      if (srcStat.isDirectory()) {
-        const dir = await readdir(srcPath)
+        const srcStat = fs.statSync(srcPath)
+        this.totalBytes = this.totalBytes + srcStat.size
 
-        source.push(...dir.map(file => path.join(srcPath, file)))
+        if (srcStat.isDirectory()) {
+          const dir = fs.readdirSync(srcPath)
 
-        continue
+          source.push(...dir.map(file => path.join(srcPath, file)))
+
+          continue
+        }
+        else { amo += 1 }
+
+        this.call('stats', { srcPath, srcStat, totalBytes: this.totalBytes })
+
+        if (this.limit.amount && amo > this.limit.amount) {
+          this.call('err', 'Compress amount limit exceeded')
+
+          return resolve(false)
+        }
+
+        if (this.limit.size && this.totalBytes > this.limit.size) {
+          this.call('err', 'Compress size limit exceeded')
+
+          return resolve(false)
+        }
       }
-      else { amo += 1 }
 
-      this.call('stats', { srcPath, srcStat, totalBytes: this.totalBytes })
-
-      if (this.limit.amount && amo > this.limit.amount) {
-        this.call('err', 'Compress amount limit exceeded')
-
-        return false
-      }
-
-      if (this.limit.size && this.totalBytes > this.limit.size) {
-        this.call('err', 'Compress size limit exceeded')
-
-        return false
-      }
-    }
-
-    this.call('stats', -1)
-
-    return true
+      this.call('stats', -1)
+      resolve(true)
+    })
   }
 
   async compress() {

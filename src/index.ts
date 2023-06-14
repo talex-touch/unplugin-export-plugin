@@ -9,5 +9,5 @@ export default createUnplugin<Options | undefined>(() => ({
       // eslint-disable-next-line no-console
       console.log('TalexTouch ran done!')
     })
-  },
+  }
 }))

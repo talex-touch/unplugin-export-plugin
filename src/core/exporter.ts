@@ -163,7 +163,7 @@ async function exportPlugin(manifest: IManifest) {
 
   console.log('\n')
 
-  tCompress.compress()
+  await tCompress.compress()
 }
 
 function genStr(len: number): string {

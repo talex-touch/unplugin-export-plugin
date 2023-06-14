@@ -131,6 +131,13 @@ export class TalexCompress {
 
     this.sourcePaths.forEach(srcPath => compressStream.addEntry(srcPath))
 
-    compressStream.pipe(this.progressStream).pipe(this.destStream)
+    return new Promise<void>((resolve) => {
+      compressStream.pipe(this.progressStream).pipe(this.destStream)
+
+      this.destStream.on('finish', () => {
+        console.log('[TalexTouch] Compress done!')
+        resolve()
+      })
+    })
   }
 }

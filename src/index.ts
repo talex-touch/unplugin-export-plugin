@@ -4,10 +4,10 @@ import { build } from './core/exporter'
 
 export default createUnplugin<Options | undefined>(() => ({
   name: '@talex-touch/unplugin-export-plugin',
-  buildEnd() {
-    build().then(() => {
-      // eslint-disable-next-line no-console
-      console.log('TalexTouch ran done!')
-    })
-  }
+  async buildEnd() {
+    await build()
+
+    // eslint-disable-next-line no-console
+    console.log('TalexTouch ran done!')
+  },
 }))

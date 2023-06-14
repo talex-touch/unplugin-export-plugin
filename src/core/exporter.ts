@@ -140,8 +140,7 @@ async function exportPlugin(manifest: IManifest) {
       p.start(tCompress.totalBytes, 0, { step: 'Compress' })
     }
     else {
-      p.stop()
-      p.start(e.amo, e.t)
+      p.increment()
     }
   })
 

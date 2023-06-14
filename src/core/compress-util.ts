@@ -86,14 +86,12 @@ export class TalexCompress {
 
     while (source.length) {
       const srcPath: string = source.shift()!
-      console.log(`[TalexTouch] Stating file: ${srcPath}`)
 
       const srcStat = fs.statSync(srcPath)
       this.totalBytes = this.totalBytes + srcStat.size
 
       if (srcStat.isDirectory()) {
         const dir = fs.readdirSync(srcPath)
-        console.log(`[TalexTouch] Stating directory: ${srcPath}`)
 
         source.push(...dir.map(file => path.join(srcPath, file)))
 
@@ -101,7 +99,7 @@ export class TalexCompress {
       }
       else { amo += 1 }
 
-      this.call('stats', { srcPath, srcStat, totalBytes: this.totalBytes })
+      this.call('stats', { amo, t: source.length, srcPath, srcStat, totalBytes: this.totalBytes })
 
       if (this.limit.amount && amo > this.limit.amount) {
         this.call('err', 'Compress amount limit exceeded')
@@ -125,18 +123,24 @@ export class TalexCompress {
     if (!this.statsSize())
       return
 
-    console.log('[TalexTouch] Start compressing...')
-
     const compressStream = new compressing.tar.Stream()
 
     this.sourcePaths.forEach(srcPath => compressStream.addEntry(srcPath))
 
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       compressStream.pipe(this.progressStream).pipe(this.destStream)
 
       this.destStream.on('finish', () => {
         console.log('[TalexTouch] Compress done!')
         resolve()
+      })
+
+      this.destStream.on('error', (err) => {
+        this.call('err', err)
+
+        console.log('[TalexTouch] An fatal error occurred while compressing plugin files.')
+        console.error(err)
+        reject(err)
       })
     })
   }

@@ -121,7 +121,7 @@ async function exportPlugin(manifest: IManifest) {
   )
 
   const p = new cliProgress.SingleBar({
-    format: '{step} Progress | {bar} | {percentage}% || {value}/{total} Chunks',
+    format: '{step} Progress | {bar} | {percentage}% | {value}/{total} Chunks',
     barCompleteChar: '\u2588',
     barIncompleteChar: '\u2591',
     hideCursor: true,
@@ -140,7 +140,8 @@ async function exportPlugin(manifest: IManifest) {
       p.start(tCompress.totalBytes, 0, { step: 'Compress' })
     }
     else {
-      p.increment()
+      p.stop()
+      p.start(e.t, e.amo, { step: `Stat ${e.srcPath}` })
     }
   })
 

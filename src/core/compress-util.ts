@@ -1,11 +1,8 @@
+/* eslint-disable no-console */
 import fs from 'node:fs'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import { Transform } from 'node:stream'
 import compressing from 'compressing'
-
-const readdir = promisify(fs.readdir)
-const stat = promisify(fs.stat)
 
 export class CompressLimit {
   /**
@@ -81,61 +78,59 @@ export class TalexCompress {
     this._events[event] = [...(this._events[event] || []), callback]
   }
 
-  async statsSize() {
+  statsSize() {
+    const source = [...this.sourcePaths]
+    let amo = 0
 
-    return new Promise<boolean>((resolve) => {
-      const source = [...this.sourcePaths]
-      let amo = 0
+    this.call('stats', this.totalBytes = 0)
 
-      this.call('stats', this.totalBytes = 0)
+    while (source.length) {
+      const srcPath: string = source.shift()!
+      console.log(`[TalexTouch] Stating file: ${srcPath}`)
 
-      while (source.length) {
-        const srcPath: string = source.shift()!
+      const srcStat = fs.statSync(srcPath)
+      this.totalBytes = this.totalBytes + srcStat.size
 
-        const srcStat = fs.statSync(srcPath)
-        this.totalBytes = this.totalBytes + srcStat.size
+      if (srcStat.isDirectory()) {
+        const dir = fs.readdirSync(srcPath)
+        console.log(`[TalexTouch] Stating directory: ${srcPath}`)
 
-        if (srcStat.isDirectory()) {
-          const dir = fs.readdirSync(srcPath)
+        source.push(...dir.map(file => path.join(srcPath, file)))
 
-          source.push(...dir.map(file => path.join(srcPath, file)))
+        continue
+      }
+      else { amo += 1 }
 
-          continue
-        }
-        else { amo += 1 }
+      this.call('stats', { srcPath, srcStat, totalBytes: this.totalBytes })
 
-        this.call('stats', { srcPath, srcStat, totalBytes: this.totalBytes })
+      if (this.limit.amount && amo > this.limit.amount) {
+        this.call('err', 'Compress amount limit exceeded')
 
-        if (this.limit.amount && amo > this.limit.amount) {
-          this.call('err', 'Compress amount limit exceeded')
-
-          return resolve(false)
-        }
-
-        if (this.limit.size && this.totalBytes > this.limit.size) {
-          this.call('err', 'Compress size limit exceeded')
-
-          return resolve(false)
-        }
+        return false
       }
 
-      this.call('stats', -1)
-      resolve(true)
-    })
+      if (this.limit.size && this.totalBytes > this.limit.size) {
+        this.call('err', 'Compress size limit exceeded')
+
+        return false
+      }
+    }
+
+    this.call('stats', -1)
+    console.log(`[TalexTouch] Stats done! Total bytes: ${this.totalBytes}`)
+    return true
   }
 
-  async compress() {
-    if (!await this.statsSize())
+  compress() {
+    if (!this.statsSize())
       return
 
-    return new Promise<void>((resolve) => {
-      const compressStream = new compressing.tar.Stream()
+    console.log('[TalexTouch] Start compressing...')
 
-      this.sourcePaths.forEach(srcPath => compressStream.addEntry(srcPath))
+    const compressStream = new compressing.tar.Stream()
 
-      compressStream.pipe(this.progressStream).pipe(this.destStream)
+    this.sourcePaths.forEach(srcPath => compressStream.addEntry(srcPath))
 
-      this.destStream.on('finish', () => resolve())
-    })
+    compressStream.pipe(this.progressStream).pipe(this.destStream)
   }
 }

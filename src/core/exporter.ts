@@ -103,7 +103,7 @@ async function exportPlugin(manifest: IManifest) {
     build.files.push(path.resolve('dist', 'key.talex'))
   }
 
-  console.log(chalk.bgBlack.white(' Talex-Touch ') + chalk.gray(' Files to be packed:') + build.files)
+  console.log(chalk.bgBlack.white(' Talex-Touch ') + chalk.gray(' Files to be packed: ') + build.files)
 
   const content = `@@@${manifest.name}\n${JSON.stringify(manifest)}\n\n\n`
   const length = content.length + 25
@@ -157,8 +157,13 @@ async function exportPlugin(manifest: IManifest) {
     step: 'Stats',
   })
 
+  console.log('\n')
+
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Start compressing plugin files...'))
-  await tCompress.compress()
+
+  console.log('\n')
+
+  tCompress.compress()
 }
 
 function genStr(len: number): string {

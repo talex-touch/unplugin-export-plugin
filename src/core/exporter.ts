@@ -111,7 +111,7 @@ async function exportPlugin(manifest: IManifest) {
   const l = length.toString().padStart(5, '0')
 
   // const tarStream = new compressing.tar.Stream()
-  const buildPath = path.resolve('dist', `${manifest.name}-${manifest.version}.touch-plugin`)
+  const buildPath = path.resolve('build', `${manifest.name}-${manifest.version}.touch-plugin`)
 
   // build.files.forEach(file => tarStream.addEntry(file))
   const tCompress = new TalexCompress(

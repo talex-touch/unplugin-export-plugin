@@ -115,7 +115,7 @@ export class TalexCompress {
     }
 
     this.call('stats', -1)
-    console.log(`[TalexTouch] Stats done! Total bytes: ${this.totalBytes}`)
+    // console.log(`[TalexTouch] Stats done! Total bytes: ${this.totalBytes}`)
     return true
   }
 

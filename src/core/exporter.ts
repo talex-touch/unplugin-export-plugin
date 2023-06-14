@@ -56,7 +56,7 @@ function genInit(): IManifest {
   const manifest = {
     name,
     version,
-    icon: {
+    icon: touch.icon || {
       type: 'remix',
       value: 'github',
     },
@@ -161,11 +161,11 @@ async function exportPlugin(manifest: IManifest) {
     step: 'Stats',
   })
 
-  console.log('\n')
+  // console.log('\n')
 
-  console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Start compressing plugin files...'))
+  // console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Start compressing plugin files...'))
 
-  console.log('\n')
+  // console.log('\n')
 
   await tCompress.compress()
 }

@@ -37,6 +37,14 @@ Generate a `touch-plugin` file on the `build` folder!
 
 For more about it, see the source code.
 
+## Inspiration
+
+Inspired by [vite](https://vitejs.dev/)
+
+## Thanks
+
+Thanks to [@antfu](https://github.com/antfu)'s [template](https://github.com/antfu/unplugin-starter)
+
 ## Contact
 
-You could contact author by `TalexDreamSoul@Gmail.com`
+You could contact us through `TalexDreamSoul@Gmail.com`

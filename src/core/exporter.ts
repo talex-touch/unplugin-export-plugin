@@ -106,13 +106,13 @@ async function exportPlugin(manifest: IManifest) {
   console.log(chalk.bgBlack.white(' Talex-Touch ') + chalk.gray(' Files to be packed: ') + build.files)
 
   const content = `@@@${manifest.name}\n${JSON.stringify(manifest)}\n\n\n`
-  const length = content.length + 25
+  const length = content.length + 31
 
   const l = length.toString().padStart(5, '0')
 
   // const tarStream = new compressing.tar.Stream()
   const buildFolder = path.resolve('build')
-  const buildPath = path.join(buildFolder, `${manifest.name}-${manifest.version}.touch-plugin`)
+  const buildPath = path.join(buildFolder, `${manifest.name}-${manifest.version}.tpex`)
 
   if (!fs.existsSync(buildFolder))
     fs.mkdirSync(buildFolder)

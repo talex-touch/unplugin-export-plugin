@@ -1,5 +1,8 @@
 {
   "cSpell.words": [
     "tpex"
-  ]
+  ],
+  "debug.javascript.defaultRuntimeExecutable": {
+    "pwa-node": "/Users/talexdreamsoul/.local/share/mise/shims/node"
+  }
 }

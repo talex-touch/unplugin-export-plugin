@@ -1,13 +1,18 @@
 import { createUnplugin } from 'unplugin'
 import type { Options } from './types'
-import { build } from './core/exporter'
+import { dev } from './core/dev'
+import { build } from './core/build'
 
-export default createUnplugin<Options | undefined>(() => ({
-  name: '@talex-touch/unplugin-export-plugin',
-  async writeBundle() {
-    await build()
-
-    // eslint-disable-next-line no-console
-    console.log('TalexTouch ran done!')
-  },
-}))
+export default createUnplugin<Options | undefined>((options, meta) => {
+  return {
+    name: 'unplugin-tuff-devkit',
+    async buildStart() {
+      if (meta.framework === 'vite' && process.env.NODE_ENV === 'development')
+        await dev(options)
+    },
+    async writeBundle() {
+      if (process.env.NODE_ENV === 'production')
+        await build(options)
+    },
+  }
+})

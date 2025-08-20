@@ -3,68 +3,104 @@ import process from 'node:process'
 import path from 'pathe'
 import fs from 'fs-extra'
 import { createUnplugin } from 'unplugin'
+import type { ViteDevServer } from 'vite'
+import Debug from 'debug'
 import type { Options } from './types'
 import { build } from './core/exporter'
 
 const VIRTUAL_PREFIX = 'virtual:tuff-raw/'
 const VIRTUAL_PREFIX_RESOLVED = `\0${VIRTUAL_PREFIX}`
 
+const debug = Debug('unplugin-tuff:core')
+
 export default createUnplugin<Options | undefined>((options, meta) => {
   const projectRoot = process.cwd()
-  const filesToVirtualize = [
-    'manifest.json',
-    'index.js',
-    'preload.js',
-  ]
+  let filesToVirtualize: string[] = []
+
+  let chalkPromise: Promise<typeof import('chalk').default> | undefined
+  const getChalk = () => {
+    if (!chalkPromise)
+      chalkPromise = import('chalk').then(m => m.default)
+    return chalkPromise
+  }
+
+  const lastUpdateStatus: Record<string, number> = {}
 
   return {
     name: 'unplugin-tuff-export-plugin',
     enforce: 'pre',
 
+    async buildStart() {
+      const chalk = await getChalk()
+      console.log(chalk.cyan('[Tuff DevKit]'), 'Plugin instance created.')
+
+      const potentialFiles = ['manifest.json', 'index.js', 'preload.js']
+      filesToVirtualize = []
+      for (const file of potentialFiles) {
+        try {
+          await fs.access(path.join(projectRoot, file))
+          filesToVirtualize.push(file)
+        }
+        catch {
+          // File does not exist, do nothing
+        }
+      }
+      debug('Virtualizing files:', filesToVirtualize)
+    },
+
     resolveId(id) {
-      if (filesToVirtualize.includes(id) || id.startsWith('widgets/')) {
-        return VIRTUAL_PREFIX_RESOLVED + id
+      const normalizedId = id.startsWith('/') ? id.slice(1) : id
+
+      if (filesToVirtualize.includes(normalizedId) || normalizedId.startsWith('widgets/')) {
+        const resolvedId = VIRTUAL_PREFIX_RESOLVED + normalizedId
+        return resolvedId
       }
       return null
     },
 
-    load(id) {
+    async load(id) {
       if (id.startsWith(VIRTUAL_PREFIX_RESOLVED)) {
         const originalId = id.slice(VIRTUAL_PREFIX_RESOLVED.length)
         const filePath = path.join(projectRoot, originalId)
         try {
-          return fs.readFileSync(filePath, 'utf-8')
+          await fs.access(filePath)
+          const content = await fs.readFile(filePath, 'utf-8')
+          return content
         }
         catch (e) {
-          console.error(`[Tuff DevKit] Failed to load virtual module: ${originalId}`, e)
-          return null
+          const errorPayload = {
+            status: 404,
+            message: '[Tuff DevKit] File not found.',
+            file: originalId,
+            fullPath: filePath,
+          }
+          return `export default ${JSON.stringify(errorPayload, null, 2)};`
         }
       }
       return null
     },
 
     vite: {
-      configureServer(server) {
-        const filesToWatch = [...filesToVirtualize, 'widgets']
+      configureServer(server: ViteDevServer) {
+        const filesToWatch = [...filesToVirtualize, 'widgets', 'README.md']
         const watcher = server.watcher
 
         for (const file of filesToWatch) {
-          watcher.add(path.join(projectRoot, file))
+          try {
+            watcher.add(path.join(projectRoot, file))
+          }
+          catch { /* Ignore if path doesn't exist */ }
         }
 
         const handleFileChange = (file: string) => {
           const relativePath = path.relative(projectRoot, file)
-          console.log(`[Tuff DevKit] File changed: ${relativePath}`)
+          debug(`File changed: ${relativePath}, triggering HMR.`)
 
-          // Invalidate the virtual module
           const virtualId = VIRTUAL_PREFIX_RESOLVED + relativePath
           const mod = server.moduleGraph.getModuleById(virtualId)
-          if (mod) {
+          if (mod)
             server.moduleGraph.invalidateModule(mod)
-            console.log(`[Tuff DevKit] Invalidated module: ${virtualId}`)
-          }
 
-          // Notify Tuff host
           server.ws.send('tuff:update', {
             path: relativePath,
             timestamp: Date.now(),
@@ -75,14 +111,48 @@ export default createUnplugin<Options | undefined>((options, meta) => {
         watcher.on('add', handleFileChange)
         watcher.on('unlink', handleFileChange)
 
-        console.log('[Tuff DevKit] Virtual module system and HMR enabled.')
+        server.middlewares.use('/_tuff_devkit/update', async (req, res) => {
+          const filesToCheck = [...filesToVirtualize, 'README.md']
+          try {
+            const widgetFiles = await fs.readdir(path.join(projectRoot, 'widgets'))
+            filesToCheck.push(...widgetFiles.map(f => `widgets/${f}`))
+          }
+          catch { /* widgets directory may not exist */ }
+
+          const status: Record<string, { exist: boolean, changed: boolean, lastModified: number | null }> = {}
+
+          for (const file of filesToCheck) {
+            try {
+              const stats = await fs.stat(path.join(projectRoot, file))
+              const lastModified = stats.mtime.getTime()
+              status[file] = {
+                exist: true,
+                changed: lastUpdateStatus[file] !== lastModified,
+                lastModified,
+              }
+              lastUpdateStatus[file] = lastModified
+            }
+            catch {
+              status[file] = {
+                exist: false,
+                changed: lastUpdateStatus[file] !== -1, // Changed if it existed before
+                lastModified: null,
+              }
+              lastUpdateStatus[file] = -1 // Mark as non-existent
+            }
+          }
+
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify(status, null, 2))
+        })
+
+        debug('Vite server configured with HMR and update API.')
       },
     },
 
     async writeBundle() {
-      if (meta.framework === 'vite') {
+      if (meta.framework === 'vite')
         await build()
-      }
     },
   }
 })

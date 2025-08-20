@@ -27,6 +27,7 @@ export class TalexCompress {
   progressStream: Transform
 
   totalBytes = 0
+  totalFiles = 0
   limit: CompressLimit = new CompressLimit()
 
   setLimit(limit: CompressLimit) {
@@ -84,6 +85,9 @@ export class TalexCompress {
 
     this.call('stats', this.totalBytes = 0)
 
+    this.totalFiles = source.length
+    this.call('stats', { type: 'start', totalFiles: this.totalFiles })
+
     while (source.length) {
       const srcPath: string = source.shift()!
 
@@ -97,9 +101,11 @@ export class TalexCompress {
 
         continue
       }
-      else { amo += 1 }
+      else {
+        amo += 1
+      }
 
-      this.call('stats', { amo, t: source.length, srcPath, srcStat, totalBytes: this.totalBytes })
+      this.call('stats', { type: 'progress', amo, t: source.length, srcPath, srcStat, totalBytes: this.totalBytes })
 
       if (this.limit.amount && amo > this.limit.amount) {
         this.call('err', 'Compress amount limit exceeded')

@@ -1,4 +1,5 @@
 export interface Options {
+  root?: string
   outDir?: string
   widgetsDir?: string
   manifestPath?: string

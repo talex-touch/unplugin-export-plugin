@@ -1,3 +1,3 @@
-import unplugin from '.'
+import plugin from '.'
 
-export default unplugin.vite
+export default plugin.vite

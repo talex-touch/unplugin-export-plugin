@@ -7,5 +7,7 @@ export default <Options>{
   clean: true,
   format: ['cjs', 'esm'],
   dts: true,
+  target: 'es2020',
+  external: ['lightningcss'],
   onSuccess: 'npm run build:fix',
 }

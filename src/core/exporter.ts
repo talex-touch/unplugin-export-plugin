@@ -1,11 +1,15 @@
 /* eslint-disable no-console */
+import process from 'node:process'
 import path from 'node:path'
-import fs from 'node:fs'
+import fs from 'fs-extra'
 import chalk from 'chalk'
 import cliProgress from 'cli-progress'
 import { CompressLimit, TalexCompress } from './compress-util'
 
 export async function build() {
+  fs.rmSync(path.resolve('dist'), { recursive: true, force: true })
+  fs.rmSync(path.resolve('dist-tmp'), { recursive: true, force: true })
+
   console.log('\n\n\n')
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.blueBright(' Generating manifest.json ...'))
 
@@ -15,7 +19,7 @@ export async function build() {
 
   await exportPlugin(manifest)
 
-  console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(` Export plugin ${manifest.name}-${manifest.version}.touch-plugin successfully!`))
+  console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(` Export plugin ${manifest.name}-${manifest.version}.tpex successfully!`))
   console.log('\n\n\n')
 }
 
@@ -47,7 +51,7 @@ interface IManifest {
 }
 
 function genInit(): IManifest {
-  const packagePath = path.resolve('package.json')
+  const packagePath = path.resolve(process.cwd(), '../package.json')
 
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'))
 
@@ -56,7 +60,7 @@ function genInit(): IManifest {
   const manifest = {
     name,
     version,
-    icon: touch.icon || {
+    icon: {
       type: 'remix',
       value: 'github',
     },
@@ -67,6 +71,7 @@ function genInit(): IManifest {
 
   const manifestPath = path.resolve('dist', 'manifest.json')
 
+  fs.mkdirSync(path.resolve('dist'), { recursive: true })
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
 
   return manifest as IManifest
@@ -92,40 +97,44 @@ async function exportPlugin(manifest: IManifest) {
   const key = genStr(32)
   fs.writeFileSync(path.resolve('dist', 'key.talex'), key)
 
-  if (!build.files.length) {
-    console.warn(chalk.bgBlack.white(' Talex-Touch ') + chalk.yellowBright(' Your package.json must contain `build` field to choose what you want to export.'))
-    console.warn(chalk.bgBlack.white(' Talex-Touch ') + chalk.yellowBright(' All files would be packed, this may tack a long time!'))
+  const tmpDir = path.resolve('dist-tmp')
+  fs.mkdirSync(tmpDir, { recursive: true })
 
-    build.files.push(path.resolve('dist'))
+  // Copy files manually
+  const filesToCopy = [
+    { from: 'index.js', to: 'index.js' },
+    { from: 'widgets', to: 'widgets' },
+    { from: 'preload.js', to: 'preload.js' },
+    { from: '../README.md', to: 'README.md' },
+    { from: 'dist/manifest.json', to: 'manifest.json' },
+    { from: 'dist/key.talex', to: 'key.talex' },
+  ]
+
+  for (const file of filesToCopy) {
+    const source = path.resolve(process.cwd(), file.from)
+    const destination = path.join(tmpDir, file.to)
+    if (fs.existsSync(source))
+      fs.copySync(source, destination)
+    else
+      console.warn(chalk.bgBlack.white(' Talex-Touch ') + chalk.yellowBright(` File not found, skipping: ${source}`))
   }
-  else {
-    build.files.push(path.resolve('dist', 'manifest.json'))
-    build.files.push(path.resolve('dist', 'key.talex'))
-  }
+
+  build.files = [tmpDir]
 
   console.log(chalk.bgBlack.white(' Talex-Touch ') + chalk.gray(' Files to be packed: ') + build.files)
 
-  const content = `@@@${manifest.name}\n${JSON.stringify(manifest)}\n\n\n`
-  const length = content.length + 30
-
-  const l = length.toString().padStart(5, '0')
-
   // const tarStream = new compressing.tar.Stream()
-  const buildFolder = path.resolve('build')
-  const buildPath = path.join(buildFolder, `${manifest.name}-${manifest.version}.tpex`)
-
-  if (!fs.existsSync(buildFolder))
-    fs.mkdirSync(buildFolder)
+  const buildPath = path.resolve('dist', `${manifest.name.replace(/\//g, '-')}-${manifest.version}.tpex`)
 
   // build.files.forEach(file => tarStream.addEntry(file))
   const tCompress = new TalexCompress(
     build.files,
-    buildPath,
-    `TalexTouch-PluginPackage@@${l}${content}`,
+    buildPath
+    ,
   )
 
   const p = new cliProgress.SingleBar({
-    format: '{step} Progress | {bar} | {percentage}% | {value}/{total} Chunks',
+    format: '{step} | {bar} | {percentage}% | {value}/{total} Chunks',
     barCompleteChar: '\u2588',
     barIncompleteChar: '\u2591',
     hideCursor: true,
@@ -136,14 +145,14 @@ async function exportPlugin(manifest: IManifest) {
   })
 
   tCompress.on('stats', (e: any) => {
-    if (e === 0)
-      return p.update(0, { step: 'Stats' })
-
-    if (e === -1) {
-      p.stop()
-      p.start(tCompress.totalBytes, 0, { step: 'Compress' })
+    if (e.type === 'start') {
+      p.start(e.totalFiles, 0, { step: 'Calculating file sizes' })
     }
-    else {
+    else if (e === -1) {
+      p.stop()
+      p.start(tCompress.totalBytes, 0, { step: 'Compressing files' })
+    }
+    else if (e.type === 'progress') {
       p.increment()
     }
   })
@@ -153,19 +162,18 @@ async function exportPlugin(manifest: IManifest) {
   tCompress.on('flush', () => {
     // exec(`explorer.exe /select,${path.normalize(target)}`)
     p.stop()
+    fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
   tCompress.setLimit(new CompressLimit(0, 0))
 
-  p.start(build.files.length, 0, {
-    step: 'Stats',
-  })
+  // The progress bar will be started in the 'stats' event handler.
 
-  // console.log('\n')
+  console.log('\n')
 
-  // console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Start compressing plugin files...'))
+  console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Start compressing plugin files...'))
 
-  // console.log('\n')
+  console.log('\n')
 
   await tCompress.compress()
 }

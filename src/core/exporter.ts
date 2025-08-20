@@ -1,12 +1,12 @@
 /* eslint-disable no-console */
 import process from 'node:process'
-import path from 'node:path'
+import path from 'pathe'
 import fs from 'fs-extra'
-import chalk from 'chalk'
-import cliProgress from 'cli-progress'
+import * as cliProgress from 'cli-progress'
 import { CompressLimit, TalexCompress } from './compress-util'
 
 export async function build() {
+  const { default: chalk } = await import('chalk')
   fs.rmSync(path.resolve('dist'), { recursive: true, force: true })
   fs.rmSync(path.resolve('dist-tmp'), { recursive: true, force: true })
 
@@ -78,6 +78,7 @@ function genInit(): IManifest {
 }
 
 async function exportPlugin(manifest: IManifest) {
+  const { default: chalk } = await import('chalk')
   const build = manifest.build || {
     files: [],
     secret: {

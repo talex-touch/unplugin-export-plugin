@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import fs from 'node:fs'
-import path from 'node:path'
 import { Transform } from 'node:stream'
+import path from 'pathe'
 import compressing from 'compressing'
 
 export class CompressLimit {

@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import process from 'node:process'
-import path from 'node:path'
+import path from 'pathe'
 import type { ViteDevServer } from 'vite'
 import type { Options } from '../types'
 

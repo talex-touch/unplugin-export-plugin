@@ -1,7 +1,7 @@
 {
   "name": "@talex-touch/unplugin-export-plugin",
   "type": "module",
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-beta.3",
   "packageManager": "pnpm@8.15.9",
   "description": "Export unplugin for talex-touch",
   "license": "MIT",
@@ -76,7 +76,6 @@
   "scripts": {
     "build": "tsup",
     "dev": "npm -C playground run dev",
-    "build:fix": "esno scripts/postbuild.ts",
     "lint": "eslint .",
     "play": "npm run dev",
     "prepublishOnly": "npm run build",

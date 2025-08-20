@@ -9,5 +9,4 @@ export default <Options>{
   dts: true,
   target: 'es2020',
   external: ['lightningcss'],
-  onSuccess: 'npm run build:fix',
 }

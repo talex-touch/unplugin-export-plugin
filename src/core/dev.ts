@@ -1,8 +1,9 @@
 /* eslint-disable no-console */
 import path from 'node:path'
-import http from 'node:http'
+import type http from 'node:http'
 import fs from 'fs-extra'
-import { createServer, ViteDevServer, Connect } from 'vite'
+import type { Connect, ViteDevServer } from 'vite'
+import { createServer } from 'vite'
 import type { Options } from '../types'
 
 // Define the files to be handled by the dev server.

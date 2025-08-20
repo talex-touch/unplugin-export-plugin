@@ -8,5 +8,5 @@ export default <Options>{
   format: ['cjs', 'esm'],
   dts: true,
   target: 'es2020',
-  external: ['lightningcss', /^node:/],
+  external: ['lightningcss', 'fs-extra', 'chalk', 'cli-progress', 'compressing', /^node:/],
 }

@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url'
 import path from 'pathe'
 import fs from 'fs-extra'
 import cliProgress from 'cli-progress'
+import { globSync } from 'glob'
 import { CompressLimit, TalexCompress } from './compress-util'
+import { generateFilesSha256, generateSignature } from './security-util'
 
 export async function build() {
   const { default: chalk } = await import('chalk')
@@ -31,6 +33,8 @@ interface IManifest {
   name: string
   version: string
   description: string
+  _files?: Record<string, string>
+  _signature?: string
   plugin?: {
     dev: {
       enable: boolean
@@ -117,6 +121,16 @@ async function exportPlugin(manifest: IManifest) {
     if (fs.existsSync(source))
       fs.copySync(source, destination)
   }
+
+  // Generate file hashes and signature
+  const filesInTmp = globSync('**/*', { cwd: tmpDir, nodir: true, absolute: true })
+  const filesToHash = filesInTmp.filter(file => path.basename(file) !== 'manifest.json' && path.basename(file) !== 'key.talex')
+
+  manifest._files = generateFilesSha256(filesToHash, tmpDir)
+  manifest._signature = generateSignature(manifest._files)
+
+  // Write the final manifest with signature
+  fs.writeFileSync(path.join(tmpDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
 
   buildConfig.files = [tmpDir]
 

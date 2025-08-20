@@ -112,23 +112,28 @@ export default createUnplugin<Options | undefined>((options, meta) => {
         watcher.on('unlink', handleFileChange)
 
         server.middlewares.use('/_tuff_devkit/update', async (req, res) => {
-          const filesToCheck = [...filesToVirtualize, 'README.md']
-          try {
-            const widgetFiles = await fs.readdir(path.join(projectRoot, 'widgets'))
-            filesToCheck.push(...widgetFiles.map(f => `widgets/${f}`))
-          }
-          catch { /* widgets directory may not exist */ }
+          const coreFiles = ['manifest.json', 'index.js', 'preload.js', 'README.md']
+          const filesToCheck = new Set([...coreFiles, ...filesToVirtualize])
 
-          const status: Record<string, { exist: boolean, changed: boolean, lastModified: number | null }> = {}
+          const status: Record<string, {
+            exist: boolean
+            changed: boolean
+            lastModified: number | null
+            path: string
+            size: number | null
+          }> = {}
 
           for (const file of filesToCheck) {
+            const filePath = path.join(projectRoot, file)
             try {
-              const stats = await fs.stat(path.join(projectRoot, file))
+              const stats = await fs.stat(filePath)
               const lastModified = stats.mtime.getTime()
               status[file] = {
                 exist: true,
                 changed: lastUpdateStatus[file] !== lastModified,
                 lastModified,
+                path: filePath,
+                size: stats.size,
               }
               lastUpdateStatus[file] = lastModified
             }
@@ -137,10 +142,43 @@ export default createUnplugin<Options | undefined>((options, meta) => {
                 exist: false,
                 changed: lastUpdateStatus[file] !== -1, // Changed if it existed before
                 lastModified: null,
+                path: filePath,
+                size: null,
               }
               lastUpdateStatus[file] = -1 // Mark as non-existent
             }
           }
+
+          try {
+            const widgetFiles = await fs.readdir(path.join(projectRoot, 'widgets'))
+            for (const file of widgetFiles.map(f => `widgets/${f}`)) {
+              const filePath = path.join(projectRoot, file)
+              try {
+                const stats = await fs.stat(filePath)
+                const lastModified = stats.mtime.getTime()
+                status[file] = {
+                  exist: true,
+                  changed: lastUpdateStatus[file] !== lastModified,
+                  lastModified,
+                  path: filePath,
+                  size: stats.size,
+                }
+                lastUpdateStatus[file] = lastModified
+              }
+              catch {
+                // This case is unlikely inside a readdir loop but included for safety
+                status[file] = {
+                  exist: false,
+                  changed: lastUpdateStatus[file] !== -1,
+                  lastModified: null,
+                  path: filePath,
+                  size: null,
+                }
+                lastUpdateStatus[file] = -1
+              }
+            }
+          }
+          catch { /* widgets directory may not exist */ }
 
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify(status, null, 2))

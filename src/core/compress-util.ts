@@ -131,7 +131,9 @@ export class TalexCompress {
 
     const compressStream = new compressing.tar.Stream()
 
-    this.sourcePaths.forEach(srcPath => compressStream.addEntry(srcPath))
+    this.sourcePaths.forEach((srcPath) => {
+      compressStream.addEntry(srcPath, { ignoreBase: true })
+    })
 
     return new Promise<void>((resolve, reject) => {
       compressStream.pipe(this.progressStream).pipe(this.destStream)

@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 import process from 'node:process'
-import { fileURLToPath } from 'node:url'
 import path from 'pathe'
 import fs from 'fs-extra'
 import cliProgress from 'cli-progress'
@@ -59,29 +58,20 @@ interface IManifest {
 }
 
 function genInit(): IManifest {
-  const __dirname = path.dirname(fileURLToPath(import.meta.url))
-  const packagePath = path.resolve(__dirname, '../../package.json')
+  const manifestPath = path.resolve(process.cwd(), 'manifest.json')
 
-  const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'))
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
 
-  const { name, version, description, 'talex-touch': touch } = packageJson
+  if (!manifest.id)
+    throw new Error('`id` field is required in manifest.json')
 
-  const manifest = {
-    name,
-    version,
-    icon: {
-      type: 'remix',
-      value: 'github',
-    },
-    description,
-    plugin: touch?.plugin,
-    build: touch?.build,
-  }
+  if (!/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+$/.test(manifest.id))
+    throw new Error('`id` field must be in the format of `com.xxx.xxx`')
 
-  const manifestPath = path.resolve('dist', 'manifest.json')
+  const distManifestPath = path.resolve('dist', 'manifest.json')
 
   fs.mkdirSync(path.resolve('dist'), { recursive: true })
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
+  fs.writeFileSync(distManifestPath, JSON.stringify(manifest, null, 2))
 
   return manifest as IManifest
 }

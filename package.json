@@ -93,5 +93,8 @@
     "typescript": "^5.9.2",
     "vite": "^4.5.14",
     "vitest": "^0.31.4"
+  },
+  "dependencies": {
+    "@talex-touch/utils": "^1.0.26"
   }
 }

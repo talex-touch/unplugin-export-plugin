@@ -10,46 +10,73 @@ import { generateFilesSha256, generateSignature } from './security-util'
 export async function build() {
   const { default: chalk } = await import('chalk')
   const distPath = path.resolve('dist')
-  const outputDir = path.resolve('dist/output')
+  const outDir = path.resolve('dist/out')
   const buildDir = path.resolve('dist/build')
 
-  // 保存现有 dist 产物到 dist/output
-  if (fs.existsSync(distPath)) {
-    // 清空 output 和 build 目录
-    fs.rmSync(outputDir, { recursive: true, force: true })
-    fs.rmSync(buildDir, { recursive: true, force: true })
+  console.log('\n\n\n')
 
-    // 将 dist 下的现有文件移动到 dist/output（排除 output、build 目录和临时文件）
-    const distFiles = fs.readdirSync(distPath)
-    fs.mkdirSync(outputDir, { recursive: true })
+  // 步骤1：备份 Vite 构建产物到 dist/out
+  console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.blueBright(' Backing up Vite build output...'))
 
-    for (const file of distFiles) {
-      if (file !== 'output' && file !== 'build' && !file.endsWith('.tpex') && !file.endsWith('.talex')) {
-        const sourcePath = path.join(distPath, file)
-        const destPath = path.join(outputDir, file)
-        try {
-          fs.moveSync(sourcePath, destPath, { overwrite: true })
-        }
-        catch (e) {
-          // 如果移动失败，尝试复制
-          fs.copySync(sourcePath, destPath, { overwrite: true })
-          fs.rmSync(sourcePath, { recursive: true, force: true })
-        }
-      }
+  fs.rmSync(outDir, { recursive: true, force: true })
+  fs.mkdirSync(outDir, { recursive: true })
+
+  // 移动 dist 下所有文件到 dist/out（排除 out 和 build 目录）
+  const distFiles = fs.readdirSync(distPath)
+  for (const file of distFiles) {
+    if (file !== 'out' && file !== 'build') {
+      const sourcePath = path.join(distPath, file)
+      const destPath = path.join(outDir, file)
+      fs.moveSync(sourcePath, destPath, { overwrite: true })
     }
   }
 
-  console.log('\n\n\n')
+  console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Vite output backed up to dist/out/'))
+
+  // 步骤2：收集文件到 dist/build
+  console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.blueBright(' Collecting files to dist/build/...'))
+
+  fs.rmSync(buildDir, { recursive: true, force: true })
+  fs.mkdirSync(buildDir, { recursive: true })
+
+  // 2.1 复制 Vite 产物
+  fs.copySync(outDir, buildDir)
+  console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Vite output copied to dist/build/'))
+
+  // 2.2 复制插件文件
+  const filesToCopy = [
+    { from: 'index.js', to: 'index.js' },
+    { from: 'widgets', to: 'widgets' },
+    { from: 'preload.js', to: 'preload.js' },
+    { from: 'README.md', to: 'README.md' },
+  ]
+
+  for (const file of filesToCopy) {
+    const source = path.resolve(process.cwd(), file.from)
+    const destination = path.join(buildDir, file.to)
+    if (fs.existsSync(source)) {
+      fs.copySync(source, destination)
+      console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.gray(` Copied ${file.from}`))
+    }
+  }
+
+  // 2.3 合并 assets 目录（三方合并）
+  await mergeAssets(chalk, buildDir)
+
+  // 2.4 生成配置文件
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.blueBright(' Generating manifest.json ...'))
 
-  const manifest = genInit()
+  const manifest = genInit(buildDir)
 
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Manifest.json generated successfully!'))
 
-  // 合并 assets 目录
-  await mergeAssets(chalk)
+  // 生成密钥
+  const key = genStr(32)
+  fs.writeFileSync(path.join(buildDir, 'key.talex'), key)
+  console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' key.talex generated successfully!'))
 
-  const tpexPath = await exportPlugin(manifest)
+  // 步骤3：压缩生成 .tpex
+  const tpexPath = await compressPlugin(manifest, buildDir, chalk)
 
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(` Export plugin ${manifest.name}-${manifest.version}.tpex successfully!`))
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.cyan(` Output path: ${chalk.yellow(tpexPath)}`))
@@ -85,56 +112,100 @@ interface IManifest {
   }
 }
 
-async function mergeAssets(chalk: any) {
+async function mergeAssets(chalk: any, buildDir: string) {
   const assetsDir = path.resolve('assets')
   const srcAssetsDir = path.resolve('src/assets')
-  const distAssetsDir = path.resolve('dist/assets')
+  const buildAssetsDir = path.join(buildDir, 'assets')
 
   const assetsExists = fs.existsSync(assetsDir)
   const srcAssetsExists = fs.existsSync(srcAssetsDir)
+  const buildAssetsExists = fs.existsSync(buildAssetsDir)
 
-  if (!assetsExists && !srcAssetsExists)
-    return // 没有 assets 目录，跳过
+  if (!assetsExists && !srcAssetsExists) {
+    // 没有额外的 assets 目录需要合并
+    if (buildAssetsExists)
+      console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.gray(' Using Vite assets only'))
+
+    return
+  }
 
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.blueBright(' Merging assets directories...'))
 
-  // 检测文件冲突
-  const conflicts: string[] = []
+  // 获取所有三个目录的文件列表
+  const buildAssets = buildAssetsExists ? globSync('**/*', { cwd: buildAssetsDir, nodir: true }) : []
+  const userAssets = assetsExists ? globSync('**/*', { cwd: assetsDir, nodir: true }) : []
+  const srcAssets = srcAssetsExists ? globSync('**/*', { cwd: srcAssetsDir, nodir: true }) : []
 
-  if (assetsExists && srcAssetsExists) {
-    const assetsFiles = globSync('**/*', { cwd: assetsDir, nodir: true })
-    const srcAssetsFiles = globSync('**/*', { cwd: srcAssetsDir, nodir: true })
+  // 检测所有冲突（三方冲突检测）
+  const conflicts: Array<{ file: string; sources: string[] }> = []
 
-    for (const file of assetsFiles) {
-      if (srcAssetsFiles.includes(file))
-        conflicts.push(file)
-    }
-
-    if (conflicts.length > 0) {
-      console.error(chalk.bgRed.white(' ERROR ') + chalk.red(' Assets merge conflict detected:'))
-      for (const file of conflicts)
-        console.error(chalk.red(`  - ${file}`))
-
-      throw new Error('Assets merge conflict: files exist in both assets/ and src/assets/')
+  // 检查 buildAssets 与 userAssets 的冲突
+  for (const file of userAssets) {
+    if (buildAssets.includes(file)) {
+      const existing = conflicts.find(c => c.file === file)
+      if (existing)
+        existing.sources.push('assets/')
+      else
+        conflicts.push({ file, sources: ['dist/build/assets/', 'assets/'] })
     }
   }
 
-  // 清空并创建 dist/assets
-  fs.rmSync(distAssetsDir, { recursive: true, force: true })
-  fs.mkdirSync(distAssetsDir, { recursive: true })
+  // 检查 buildAssets 与 srcAssets 的冲突
+  for (const file of srcAssets) {
+    if (buildAssets.includes(file)) {
+      const existing = conflicts.find(c => c.file === file)
+      if (existing) {
+        if (!existing.sources.includes('src/assets/'))
+          existing.sources.push('src/assets/')
+      }
+      else {
+        conflicts.push({ file, sources: ['dist/build/assets/', 'src/assets/'] })
+      }
+    }
+  }
+
+  // 检查 userAssets 与 srcAssets 的冲突
+  for (const file of srcAssets) {
+    if (userAssets.includes(file)) {
+      const existing = conflicts.find(c => c.file === file)
+      if (existing) {
+        if (!existing.sources.includes('src/assets/'))
+          existing.sources.push('src/assets/')
+      }
+      else {
+        conflicts.push({ file, sources: ['assets/', 'src/assets/'] })
+      }
+    }
+  }
+
+  if (conflicts.length > 0) {
+    console.error(chalk.bgRed.white(' ERROR ') + chalk.red(' Assets merge conflict detected:'))
+    for (const conflict of conflicts)
+      console.error(chalk.red(`  - ${conflict.file} (in: ${conflict.sources.join(', ')})`))
+
+    throw new Error('Assets merge conflict: same file exists in multiple asset directories')
+  }
+
+  // 创建 assets 目录（如果不存在）
+  if (!buildAssetsExists)
+    fs.mkdirSync(buildAssetsDir, { recursive: true })
 
   // 复制 assets
-  if (assetsExists)
-    fs.copySync(assetsDir, distAssetsDir)
+  if (assetsExists) {
+    fs.copySync(assetsDir, buildAssetsDir)
+    console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Merged assets/ into dist/build/assets/'))
+  }
 
   // 复制 src/assets
-  if (srcAssetsExists)
-    fs.copySync(srcAssetsDir, distAssetsDir)
+  if (srcAssetsExists) {
+    fs.copySync(srcAssetsDir, buildAssetsDir)
+    console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Merged src/assets/ into dist/build/assets/'))
+  }
 
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Assets merged successfully!'))
 }
 
-function genInit(): IManifest {
+function genInit(_buildDir: string): IManifest {
   const manifestPath = path.resolve(process.cwd(), 'manifest.json')
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
@@ -145,15 +216,11 @@ function genInit(): IManifest {
   if (!/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+$/.test(manifest.id))
     throw new Error('`id` field must be in the format of `com.xxx.xxx`')
 
-  const distManifestPath = path.resolve('dist', 'manifest.json')
-
-  fs.mkdirSync(path.resolve('dist'), { recursive: true })
-  fs.writeFileSync(distManifestPath, JSON.stringify(manifest, null, 2))
-
+  // manifest.json 会在后续添加签名后再写入，这里只返回解析后的对象
   return manifest as IManifest
 }
 
-async function exportPlugin(manifest: IManifest): Promise<string> {
+async function compressPlugin(manifest: IManifest, buildDir: string, chalk: any): Promise<string> {
   const buildConfig = manifest.build || {
     files: [],
     secret: {
@@ -166,40 +233,17 @@ async function exportPlugin(manifest: IManifest): Promise<string> {
     },
   }
 
-  const key = genStr(32)
-  fs.writeFileSync(path.resolve('dist', 'key.talex'), key)
-
-  const tmpDir = path.resolve('dist/build')
-  fs.mkdirSync(tmpDir, { recursive: true })
-
-  // Copy files
-  const filesToCopy = [
-    { from: 'index.js', to: 'index.js' },
-    { from: 'widgets', to: 'widgets' },
-    { from: 'preload.js', to: 'preload.js' },
-    { from: 'README.md', to: 'README.md' },
-    { from: 'dist/manifest.json', to: 'manifest.json' },
-    { from: 'dist/key.talex', to: 'key.talex' },
-  ]
-
-  for (const file of filesToCopy) {
-    const source = path.resolve(process.cwd(), file.from)
-    const destination = path.join(tmpDir, file.to)
-    if (fs.existsSync(source))
-      fs.copySync(source, destination)
-  }
-
   // Generate file hashes and signature
-  const filesInTmp = globSync('**/*', { cwd: tmpDir, nodir: true, absolute: true })
-  const filesToHash = filesInTmp.filter(file => path.basename(file) !== 'manifest.json' && path.basename(file) !== 'key.talex')
+  const filesInBuild = globSync('**/*', { cwd: buildDir, nodir: true, absolute: true })
+  const filesToHash = filesInBuild.filter(file => path.basename(file) !== 'manifest.json' && path.basename(file) !== 'key.talex')
 
-  manifest._files = generateFilesSha256(filesToHash, tmpDir)
+  manifest._files = generateFilesSha256(filesToHash, buildDir)
   manifest._signature = generateSignature(manifest._files)
 
   // Write the final manifest with signature
-  fs.writeFileSync(path.join(tmpDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
+  fs.writeFileSync(path.join(buildDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
 
-  buildConfig.files = [tmpDir]
+  buildConfig.files = [buildDir]
 
   const buildPath = path.resolve('dist', `${manifest.name.replace(/\//g, '-')}-${manifest.version}.tpex`)
 
@@ -228,12 +272,11 @@ async function exportPlugin(manifest: IManifest): Promise<string> {
   tCompress.on('err', (msg: any) => console.error(msg))
   tCompress.on('flush', () => {
     p.stop()
-    fs.rmSync(tmpDir, { recursive: true, force: true })
+    // 不清理 dist/build 目录，保留用于调试
   })
 
   tCompress.setLimit(new CompressLimit(0, 0))
 
-  const { default: chalk } = await import('chalk')
   console.log('\n')
   console.info(chalk.bgBlack.white(' Talex-Touch ') + chalk.greenBright(' Start compressing plugin files...'))
   console.log('\n')

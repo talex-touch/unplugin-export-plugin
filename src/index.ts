@@ -188,7 +188,7 @@ export default createUnplugin<Options | undefined>((options, meta) => {
       },
     },
 
-    async writeBundle() {
+    async closeBundle() {
       if (meta.framework === 'vite')
         await build()
     },

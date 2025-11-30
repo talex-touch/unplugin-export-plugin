@@ -93,7 +93,7 @@ interface IManifest {
     dev: {
       enable: boolean
       address: string
-      source: string
+      source: boolean
     }
   }
   build?: {
@@ -242,7 +242,7 @@ async function compressPlugin(manifest: IManifest, buildDir: string, chalk: any)
   manifest._signature = generateSignature(manifest._files)
 
   manifest.plugin = {
-    ...manifest,
+    ...manifest.plugin,
     dev: {
       enable: false,
       address: '',

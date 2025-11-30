@@ -53,11 +53,15 @@
   },
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "tuff-build": "dist/bin/tuff-build.js"
+  },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsup",
+    "tuff:build": "tuff-build",
     "dev": "npm -C playground run dev",
     "lint": "eslint .",
     "play": "npm run dev",

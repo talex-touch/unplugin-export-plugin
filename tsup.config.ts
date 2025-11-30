@@ -10,6 +10,7 @@ export default <Options>{
     'src/nuxt.ts',
     'src/types.ts',
     'src/preload.ts',
+    'src/bin/tuff-build.ts',
   ],
   clean: true,
   format: ['esm'],

@@ -37,6 +37,28 @@ Generate a `touch-plugin` file on the `build` folder!
 
 For more about it, see the source code.
 
+### Build Plugin Package
+
+`vite build` or `vite-ssg build` only generate regular Vite artifacts. You need to run the provided CLI to pack them into `.tpex`：
+
+```bash
+vite build && tuff-build
+# or
+vite-ssg build && tuff-build
+```
+
+You can also add a script in `package.json`：
+
+```json
+{
+  "scripts": {
+    "build": "vite build && tuff-build"
+  }
+}
+```
+
+The CLI will read `dist/` and generate `dist/out` and `dist/build` folders. The final `.tpex` file will be in `dist/build/`.
+
 Your result can refer to this
 
 ```

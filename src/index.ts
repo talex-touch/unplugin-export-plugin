@@ -196,10 +196,5 @@ export default createUnplugin<Options | undefined>((options, meta) => {
         debug('Vite server configured with HMR and update API.')
       },
     },
-
-    async closeBundle() {
-      if (meta.framework === 'vite')
-        await build()
-    },
   }
 })

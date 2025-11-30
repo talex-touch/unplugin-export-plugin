@@ -34,15 +34,6 @@ export default createUnplugin<Options | undefined>((options, meta) => {
       const chalk = await getChalk()
       console.log(chalk.cyan('[Tuff DevKit]'), 'Plugin instance created.')
 
-      // 在生产构建时删除 dist 目录
-      if (meta.framework === 'vite' && process.env.NODE_ENV === 'production') {
-        const distPath = path.resolve(projectRoot, 'dist')
-        if (fs.existsSync(distPath)) {
-          fs.rmSync(distPath, { recursive: true, force: true })
-          console.log(chalk.cyan('[Tuff DevKit]'), 'Cleaned dist directory.')
-        }
-      }
-
       const potentialFiles = ['manifest.json', 'index.js', 'preload.js']
       filesToVirtualize = []
       for (const file of potentialFiles) {

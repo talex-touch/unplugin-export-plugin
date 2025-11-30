@@ -39,25 +39,32 @@ For more about it, see the source code.
 
 ### Build Plugin Package
 
-`vite build` or `vite-ssg build` only generate regular Vite artifacts. You need to run the provided CLI to pack them into `.tpex`：
+`vite build` or `vite-ssg build` only generate regular Vite artifacts. You need to run the provided CLI to pack them into `.tpex`:
 
 ```bash
-vite build && tuff-build
+vite build && tuff builder
 # or
-vite-ssg build && tuff-build
+vite-ssg build && tuff builder
 ```
 
-You can also add a script in `package.json`：
+You can also add a script in `package.json`:
 
 ```json
 {
   "scripts": {
-    "build": "vite build && tuff-build"
+    "build": "vite build && tuff builder"
   }
 }
 ```
 
 The CLI will read `dist/` and generate `dist/out` and `dist/build` folders. The final `.tpex` file will be in `dist/build/`.
+
+Extra commands:
+
+```bash
+tuff help   # show command list
+tuff about  # tool info
+```
 
 Your result can refer to this
 

@@ -93,6 +93,7 @@ interface IManifest {
     dev: {
       enable: boolean
       address: string
+      source: string
     }
   }
   build?: {
@@ -239,6 +240,15 @@ async function compressPlugin(manifest: IManifest, buildDir: string, chalk: any)
 
   manifest._files = generateFilesSha256(filesToHash, buildDir)
   manifest._signature = generateSignature(manifest._files)
+
+  manifest.plugin = {
+    ...manifest,
+    dev: {
+      enable: false,
+      address: '',
+      source: false
+    }
+  }
 
   // Write the final manifest with signature
   fs.writeFileSync(path.join(buildDir, 'manifest.json'), JSON.stringify(manifest, null, 2))

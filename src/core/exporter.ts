@@ -89,12 +89,10 @@ interface IManifest {
   description: string
   _files?: Record<string, string>
   _signature?: string
-  plugin?: {
-    dev: {
-      enable: boolean
-      address: string
-      source: boolean
-    }
+  dev: {
+    enable: boolean
+    address: string
+    source: boolean
   }
   build?: {
     files: string[]
@@ -241,13 +239,11 @@ async function compressPlugin(manifest: IManifest, buildDir: string, chalk: any)
   manifest._files = generateFilesSha256(filesToHash, buildDir)
   manifest._signature = generateSignature(manifest._files)
 
-  manifest.plugin = {
-    ...manifest.plugin,
-    dev: {
-      enable: false,
-      address: '',
-      source: false
-    }
+  manifest.dev = {
+    ...manifest.dev,
+    enable: false,
+    address: '',
+    source: false,
   }
 
   // Write the final manifest with signature
